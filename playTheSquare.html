@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title></title>
+    <style media="screen">
+        canvas {
+            box-shadow: 0 0 10px black;
+            display: block;
+            margin: auto;
+            background: rgb(40, 40, 40);
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas" width="800" height="600"></canvas>
+</body>
+<script src="js/Bullet.js" charset="utf-8"></script>
+<script src="js/MyBlock.js" charset="utf-8"></script>
+<script src="js/EnemyBlock.js" charset="utf-8"></script>
+<script src="js/Particle.js" charset="utf-8"></script>
+<script src="js/Background.js" charset="utf-8"></script>
+<script type="text/javascript">
+    var canvas = document.getElementById('canvas');
+    var ctx = canvas.getContext('2d');
+    // 创建我方方块对象
+    var myBlock = new MyBlock();
+    // 创建敌方方块对象
+    var enemyBlock = new EnemyBlock();
+    // 创建一个对象,用于存储敌方粒子在爆炸时的位置信息以及颜色信息
+    var new_ = new NewXY();
+    // 定义一个快关变量标识控制游戏的开始
+    var startFlag = false;
+    // 点击生成子弹和点击游戏开始
+    canvas.addEventListener('mousedown', function() {
+        myBlock.create = true;
+        startFlag = true;
+    }, false);
+    // 调用对我方方块的拖拽方法
+    myBlock.drag();
+    // 游戏主要动画函数
+    function gameAnimation() {
+        // 清理画布
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (!startFlag) {
+            gameReady();
+        }
+        if (startFlag) {
+            // 绘制我方方块
+            myBlock.draw();
+            // 我方方块生成子弹
+            myBlock.createBullet();
+            // 我方方块生成子弹调用子弹
+            myBlock.moveBullet();
+            // 调用方法生成敌方方块
+            enemyBlock.createEnemyBlock();
+            enemyBlock.createBoomBlock();
+            // 调用方法移动敌方方块
+            enemyBlock.moveEnemyBlock();
+            enemyBlock.moveBoomBlock();
+            // 遍历子弹对象完成粒子的生成和移动
+            for (var i = 0; i < myBlock.bullets.length; i++) {
+                myBlock.bullets[i].createParticle();
+                myBlock.bullets[i].moveParticle();
+            }
+            // 子弹方块与敌方方块的检测碰撞
+            BEcollision(myBlock.bullets, enemyBlock.enemyBlocks);
+            //敌方方块爆炸的粒子的生成和移动
+            enemyBlock.createParticle();
+            enemyBlock.moveParticle();
+
+            // 子弹方块与敌方彩色方块的检测碰撞
+            boomCollision(myBlock.bullets, enemyBlock.boomBlocks);
+            // 遍历存储子弹与彩色方块碰撞检测之后的布尔值数组
+            for (var i = 0; i < booles.length; i++) {
+                // 判断方块子弹如果打中彩色炸弹方块,游戏就结束了;
+                if (booles[i]) {
+                    // 判断本次最分数是否为最高分
+                    if (myBlock.score > localStorage.getItem('hightScore')) {
+                        localStorage.setItem('hightScore', myBlock.score);
+                    }
+                    // 绘制游戏结束
+                    gameOver();
+                    // 点击再来一局
+                    canvas.addEventListener('mousedown', function() {
+                        window.location.reload();
+                    }, false);
+
+                    return;
+                }
+            }
+            // 判断是否游戏结束
+            if (enemyBlock.lose >= 4) {
+                // 判断本次最分数是否为最高分
+                if (myBlock.score > localStorage.getItem('hightScore')) {
+                    localStorage.setItem('hightScore', myBlock.score);
+                }
+                // 绘制游戏结束
+                gameOver();
+                // 点击再来一局
+                canvas.addEventListener('mousedown', function() {
+                    window.location.reload();
+                }, false);
+
+                return;
+            }
+            // 绘制游戏背景文字
+            gameStart();
+        }
+        window.requestAnimationFrame(gameAnimation);
+    }
+    gameAnimation();
+    gameReadyAnimation();
+
+    // 判断两两方块相碰撞函数
+    function collision(d1, d2) {
+        // 方块1的位置信息
+        var d1Right = d1.x + d1.w;
+        var d1Left = d1.x;
+        var d1Top = d1.y;
+        var d1Bottom = d1.y + d1.h;
+
+        // 方块2的位置信息
+        var d2Right = d2.x + d2.h;
+        var d2Left = d2.x;
+        var d2Top = d2.y;
+        var d2Bottom = d2.y + d2.h;
+
+        // 判断方块是否碰撞
+        // d1Right < d2Left || d1Left > d2Right || d1Top > d2Bottom || d1Bottom < d2Top方块没有碰撞上的
+        if (d1Right < d2Left || d1Left > d2Right || d1Top > d2Bottom || d1Bottom < d2Top) {
+            // 返回false表示没有相碰
+            return false;
+        } else {
+            // 返回true表示相碰
+            return true;
+        }
+    }
+
+    // 判断方块子弹与敌方方块的两两碰撞
+    function BEcollision(bullets, enemyBlocks) {
+        for (var i = 0; i < bullets.length; i++) {
+            for (var j = 0; j < enemyBlocks.length; j++) {
+                var result = collision(bullets[i], enemyBlocks[j]);
+                if (result) {
+                    // 在爆炸敌方方块对象被删除之前保存住此时的坐标
+                    new_.newX = enemyBlocks[j].x;
+                    new_.newY = enemyBlocks[j].y;
+                    new_.newW = enemyBlocks[j].w;
+                    new_.newColor = enemyBlocks[j].color;
+                    // 打中方块就加20分
+                    myBlock.score += 25;
+                    // 从子弹数组中清除爆炸的子弹
+                    bullets.splice(i, 1);
+                    i--;
+                    enemyBlock.flag = true;
+                    // 从敌方方块数组中清除已经爆炸的方块
+                    enemyBlocks.splice(j, 1);
+                    j--;
+                    break;
+                }
+            }
+        }
+    }
+
+    // 定义一个数组存储比较之后的布尔值
+    var booles = [];
+    // 判断方块子弹与敌方炸弹方块的两两碰撞
+    function boomCollision(bullets, boomBlocks) {
+        for (var i = 0; i < bullets.length; i++) {
+            for (var j = 0; j < boomBlocks.length; j++) {
+                var result = collision(bullets[i], boomBlocks[j]);
+                booles.push(result);
+            }
+        }
+    }
+</script>
+
+</html>
